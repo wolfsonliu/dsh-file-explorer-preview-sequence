@@ -1,13 +1,15 @@
-import seqparse, { type Seq } from 'seqparse'
+import { parseFile, type Seq } from 'seqparse'
 import type { SeqVizProps } from 'seqviz'
 
 type AnnotationProp = NonNullable<SeqVizProps['annotations']>[number]
 
-/** Parse file content (string) into a unified Seq. Always pass fileName so
- *  seqparse can disambiguate extensions (.seq/.xml) and skip its accession-ID
- *  online-fetch branch (this plugin does no network lookups). */
+/** Parse file content (string) into a unified Seq. Uses seqparse's `parseFile`
+ *  (not its default export) so a non-empty `fileName` drives extension-based
+ *  disambiguation (.seq/.xml) and the accession-ID fetch branch is never hit. */
 export async function parseSequence(content: string, fileName: string): Promise<Seq> {
-  return await seqparse(content, { fileName })
+  const seqs = parseFile(content, { fileName })
+  if (seqs.length === 0) throw new Error(`no sequence parsed from ${fileName}`)
+  return seqs[0]
 }
 
 /** Normalize seqparse annotations into SeqViz's AnnotationProp shape, dropping
