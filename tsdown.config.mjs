@@ -29,11 +29,20 @@ export default [{
   dts: false,
   sourcemap: true,
   clean: false,
-  // seqparse's published UMD imports the `path` node builtin (`import { sep }
-  // from "path"`); map it to the browser polyfill. Add more entries only if
-  // the build reports an unresolved builtin (see the plan's fallback table).
+  // Browser-entry / node-builtin fixes. rolldown does not honor the `browser`
+  // export condition (nor a legacy top-level `browser` field), so these
+  // packages would otherwise resolve to their Node entries and drag in node
+  // builtins (`http`/`https`/`stream`/`zlib`/`util`/`url`/`punycode`/`encoding`
+  // for node-fetch, `react-dom/server` + `stream`/`util` for seqviz) that then
+  // surface as `require(...)` calls missing from the client module table.
+  // - `path` is a node builtin seqparse imports directly; map to the polyfill.
+  // - `node-fetch` is seqparse's accession-fetch dep (unused here): browser shim.
+  // - `seqviz`: its node entry lazily `require("react-dom/server")`; use the
+  //   browser entry (which never references react-dom/server).
   alias: {
     path: 'path-browserify',
+    'node-fetch': 'node-fetch/browser',
+    seqviz: 'seqviz/dist/index.browser.js',
   },
   deps: {
     neverBundle: platformModules,
