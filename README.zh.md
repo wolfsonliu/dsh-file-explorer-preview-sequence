@@ -6,6 +6,12 @@
 
 在文件浏览器里选中 `.gb` / `.fasta`（或下列任意支持格式），预览面板即渲染交互式序列查看器，而非原始文本。
 
+## 截图
+
+| 深色主题 | 浅色主题 |
+| --- | --- |
+| ![深色主题下的序列预览](assets/dsh-file-explorer-preview-sequence_dark.png) | ![浅色主题下的序列预览](assets/dsh-file-explorer-preview-sequence_light.png) |
+
 ## 特性
 
 - **交互式查看器**：基于 [`seqviz`](https://github.com/Lattice-Automation/seqviz)（`<SeqViz>`），由 [`seqparse`](https://github.com/Lattice-Automation/seqparse) 解析。

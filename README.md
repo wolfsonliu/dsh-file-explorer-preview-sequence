@@ -6,6 +6,12 @@ A [DSH Web](https://deepseek.com) plugin that adds a **SeqViz sequence viewer** 
 
 Select a `.gb` / `.fasta` (or any supported format below) in the file explorer and the preview panel renders an interactive sequence viewer instead of raw text.
 
+## Screenshots
+
+| Dark theme | Light theme |
+| --- | --- |
+| ![Sequence preview in dark theme](assets/dsh-file-explorer-preview-sequence_dark.png) | ![Sequence preview in light theme](assets/dsh-file-explorer-preview-sequence_light.png) |
+
 ## Features
 
 - **Interactive viewer** built on [`seqviz`](https://github.com/Lattice-Automation/seqviz) (`<SeqViz>`), with parsing by [`seqparse`](https://github.com/Lattice-Automation/seqparse).
