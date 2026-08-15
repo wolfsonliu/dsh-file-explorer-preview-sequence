@@ -1,4 +1,9 @@
-seqparse
-seqviz
+node_modules/
+.npm-cache/
+*.tsbuildinfo
+*.log
+
+seqparse/
+seqviz/
 
 docs/*
