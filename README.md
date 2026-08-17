@@ -53,7 +53,7 @@ dsh web
 
 ## Dependencies
 
-This plugin **requires** [`@dsh-external/dsh-file-explorer`](https://github.com/wolfsonliu/dsh-file-explorer) — it injects the `fileExplorer` cordis service (`registerPreview` / `writeFile` / `readRawFile`). Install and enable `dsh-file-explorer` before this plugin:
+This plugin **requires** [`@dsh-external/dsh-file-explorer`](https://github.com/wolfsonliu/dsh-file-explorer) (v0.1.0+) — it injects the `fileExplorer` cordis service (`registerPreview` / `writeFile` / `readRawFile`). Install and enable `dsh-file-explorer` before this plugin:
 
 ```sh
 # install the core from git
@@ -68,12 +68,12 @@ dsh plugin --profile web add .
 
 > For local development, this repo's `devDependencies` resolves `@dsh-external/dsh-file-explorer`'s `./client` type definitions. Point it at your checkout or your registry's published package before `npm install`.
 
-For files ≤ 2 MiB the plugin parses the `text` preview content directly. SnapGene `.dna` (binary) and files larger than 2 MiB require `dsh-file-explorer` to expose `readRawFile` (a small core change described in [dsh-file-explorer-preview-molstar](https://github.com/wolfsonliu/dsh-file-explorer-preview-molstar/blob/main/docs/handoff-2026-08-15-molstar-core-changes.md)). Until that change is applied, the plugin degrades gracefully: text formats ≤ 2 MiB still preview, `.dna` and larger files show the core's "binary" / "too large" status.
+For files ≤ 2 MiB the plugin parses the `text` preview content directly. SnapGene `.dna` (binary) and files larger than 2 MiB are handled via `readRawFile` (available in dsh-file-explorer v0.1.0+). When `readRawFile` is absent (older core versions), the plugin degrades gracefully: text formats ≤ 2 MiB still preview, `.dna` and larger files show an unsupported status.
 
 ## Limitations
 
 - Read-only preview (no editing).
-- SnapGene `.dna` and > 2 MiB files preview only after the core `readRawFile` change lands (see [Dependencies](#dependencies)).
+- SnapGene `.dna` and > 2 MiB files require dsh-file-explorer v0.1.0+ (older versions degrade gracefully).
 - `.xml` and `.seq` are ambiguous extensions; files in those extensions that aren't SBOL / JBEI fall back to a plain-text view.
 
 ## Development

@@ -53,7 +53,7 @@ dsh web
 
 ## 依赖
 
-本插件**依赖** [`@dsh-external/dsh-file-explorer`](https://github.com/wolfsonliu/dsh-file-explorer) —— 它注入 `fileExplorer` cordis 服务（`registerPreview` / `writeFile` / `readRawFile`）。请先安装并启用 `dsh-file-explorer`：
+本插件**依赖** [`@dsh-external/dsh-file-explorer`](https://github.com/wolfsonliu/dsh-file-explorer)（v0.1.0+）—— 它注入 `fileExplorer` cordis 服务（`registerPreview` / `writeFile` / `readRawFile`）。请先安装并启用 `dsh-file-explorer`：
 
 ```sh
 # 从 git 安装核心
@@ -68,12 +68,12 @@ dsh plugin --profile web add .
 
 > 本地开发时，本仓库的 `devDependencies` 用于让 tsc 解析 `@dsh-external/dsh-file-explorer` 的 `./client` 类型定义；`npm install` 前请将其指向你自己的 checkout（或 registry 上发布的包）。
 
-≤ 2 MiB 的文件插件直接解析 `text` 预览内容。SnapGene `.dna`（二进制）与 > 2 MiB 的大文件需要 `dsh-file-explorer` 暴露 `readRawFile`（一处核心小改动，见 [dsh-file-explorer-preview-molstar](https://github.com/wolfsonliu/dsh-file-explorer-preview-molstar/blob/main/docs/handoff-2026-08-15-molstar-core-changes.md)）。在该改动落地前，插件自动降级：≤ 2 MiB 的文本格式仍可预览，`.dna` 与大文件显示核心的"二进制 / 文件过大"提示。
+≤ 2 MiB 的文件插件直接解析 `text` 预览内容。SnapGene `.dna`（二进制）与 > 2 MiB 的大文件通过 `readRawFile`（dsh-file-explorer v0.1.0+ 已提供）处理。当 `readRawFile` 不可用时（旧版核心），插件自动降级：≤ 2 MiB 的文本格式仍可预览，`.dna` 与大文件显示暂不支持提示。
 
 ## 限制
 
 - 只读预览（不支持编辑）。
-- SnapGene `.dna` 与 > 2 MiB 文件需核心 `readRawFile` 改动落地后才能预览（见[依赖](#依赖)）。
+- SnapGene `.dna` 与 > 2 MiB 文件需 dsh-file-explorer v0.1.0+（旧版自动降级）。
 - `.xml` 与 `.seq` 为歧义扩展名；非 SBOL / JBEI 的同扩展名文件会回退为纯文本显示。
 
 ## 开发
