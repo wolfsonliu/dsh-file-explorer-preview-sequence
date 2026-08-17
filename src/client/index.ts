@@ -5,12 +5,11 @@ import { registerSequenceLocale, SEQ_NS } from './locale.ts'
 import { VIEWER_CSS } from './styles.ts'
 
 /**
- * `readRawFile` is added by a core change in dsh-file-explorer (see the molstar
- * handoff doc). Until that lands, the property is absent and the plugin
- * degrades to ≤2 MiB text previews only.
+ * `readRawFile` is provided by dsh-file-explorer v0.1.0+. When absent (older
+ * core), the plugin degrades: binary/too-large files show an unsupported message.
  */
 type SequenceFileExplorer = FileExplorerService & {
-  readRawFile?: (path: string) => Promise<ArrayBuffer>
+  readRawFile?: (path: string, offset?: number, limit?: number) => Promise<ArrayBuffer>
 }
 
 interface ClientContext {
