@@ -110,4 +110,64 @@ describe('SequencePreview', () => {
     expect(seqviz!.getAttribute('data-length')).toBe('8')
     expect(seqviz!.getAttribute('data-annotations')).toBe('0')
   })
+
+  test('parses a binary file via readRaw and renders SeqViz', async () => {
+    const text = '>test\nATCGATCG'
+    const encoder = new TextEncoder()
+    const buffer = encoder.encode(text).buffer
+    const readRaw = vi.fn(async () => buffer)
+
+    const Preview = makeSequencePreview(readRaw, t)
+    const container = await renderAndSettle(
+      <Preview
+        preview={{ kind: 'binary', name: 'x.dna', size: 10 }}
+        filePath="x.dna"
+        activeView="preview"
+        t={t}
+      />,
+    )
+
+    const seqviz = container.querySelector('[data-testid="seqviz"]')
+    expect(seqviz).not.toBeNull()
+    expect(readRaw).toHaveBeenCalledWith('x.dna')
+  })
+
+  test('parses a too-large file via readRaw and renders SeqViz', async () => {
+    const text = '>test\nATCGATCG'
+    const encoder = new TextEncoder()
+    const buffer = encoder.encode(text).buffer
+    const readRaw = vi.fn(async () => buffer)
+
+    const Preview = makeSequencePreview(readRaw, t)
+    const container = await renderAndSettle(
+      <Preview
+        preview={{ kind: 'too-large', name: 'big.fa', size: 5_000_000 }}
+        filePath="big.fa"
+        activeView="preview"
+        t={t}
+      />,
+    )
+
+    const seqviz = container.querySelector('[data-testid="seqviz"]')
+    expect(seqviz).not.toBeNull()
+    expect(readRaw).toHaveBeenCalledWith('big.fa')
+  })
+
+  test('shows error when readRaw fails for binary/too-large', async () => {
+    const readRaw = vi.fn(async () => { throw new Error('network error') })
+
+    const Preview = makeSequencePreview(readRaw, t)
+    const container = await renderAndSettle(
+      <Preview
+        preview={{ kind: 'too-large', name: 'big.fa', size: 5_000_000 }}
+        filePath="big.fa"
+        activeView="preview"
+        t={t}
+      />,
+    )
+
+    expect(container.textContent).toContain('T:loadError')
+    expect(container.textContent).toContain('network error')
+    expect(readRaw).toHaveBeenCalledWith('big.fa')
+  })
 })

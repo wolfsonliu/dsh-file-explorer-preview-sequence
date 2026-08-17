@@ -3,9 +3,9 @@ import { SeqViz, type SeqVizProps } from 'seqviz'
 import type { PreviewProps, Translate } from '@dsh-external/dsh-file-explorer/client'
 import type { Seq } from 'seqparse'
 import { extensionOf, fallsBackToText, formatLabelFor } from './formats.ts'
-import { parseSequence, toSeqvizAnnotations } from './parse.ts'
+import { parseSequence, parseSequenceFromBuffer, toSeqvizAnnotations } from './parse.ts'
 
-type ReadRaw = (path: string) => Promise<ArrayBuffer>
+type ReadRaw = (path: string, offset?: number, limit?: number) => Promise<ArrayBuffer>
 
 type Viewer = NonNullable<SeqVizProps['viewer']>
 
@@ -51,14 +51,16 @@ export function makeSequencePreview(readRaw: ReadRaw | undefined, t: Translate):
             const seq = await parseSequence(preview.content, preview.name)
             if (!cancelled) setState({ phase: 'ready', seq })
           } else {
-            // binary / too-large: reachable only after the core readRawFile
-            // routing change lands. SnapGene takes `source: ArrayBuffer`; large
-            // text is decoded via TextDecoder — deferred.
+            // binary / too-large: call readRaw to get the raw bytes, then
+            // parse with seqparse. Degrades to unsupported if readRaw is
+            // absent (older dsh-file-explorer core).
             if (readRaw === undefined) {
               if (!cancelled) setState({ phase: 'unsupported' })
               return
             }
-            throw new Error(t('unsupportedYet'))
+            const buffer = await readRaw(filePath)
+            const seq = await parseSequenceFromBuffer(buffer, preview.name)
+            if (!cancelled) setState({ phase: 'ready', seq })
           }
         } catch (error) {
           if (cancelled) return
