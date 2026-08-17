@@ -22,11 +22,13 @@ export async function parseSequenceFromBuffer(buffer: ArrayBuffer, fileName: str
   // SnapGene .dna is binary — seqparse handles ArrayBuffer natively for this format.
   // For all other formats, decode as UTF-8 text first.
   if (ext === 'dna') {
+    // SnapGene .dna is binary — seqparse accepts the ArrayBuffer via options.source.
+    // The first argument (file content) is unused for SnapGene; pass an empty string.
     try {
-      const seqs = parseFile(buffer, { fileName })
+      const seqs = parseFile('', { fileName, source: buffer })
       if (seqs.length > 0) return seqs[0]
     } catch {
-      // SnapGene binary parsing failed; fall through to text decoding
+      // SnapGene binary parsing failed; fall through to text decoding.
     }
   }
   const decoder = new TextDecoder()

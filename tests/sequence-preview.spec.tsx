@@ -120,8 +120,8 @@ describe('SequencePreview', () => {
     const Preview = makeSequencePreview(readRaw, t)
     const container = await renderAndSettle(
       <Preview
-        preview={{ kind: 'binary', name: 'x.dna', size: 10 }}
-        filePath="x.dna"
+        preview={{ kind: 'binary', name: 'x.gb', size: 10 }}
+        filePath="x.gb"
         activeView="preview"
         t={t}
       />,
@@ -129,7 +129,7 @@ describe('SequencePreview', () => {
 
     const seqviz = container.querySelector('[data-testid="seqviz"]')
     expect(seqviz).not.toBeNull()
-    expect(readRaw).toHaveBeenCalledWith('x.dna')
+    expect(readRaw).toHaveBeenCalledWith('x.gb')
   })
 
   test('parses a too-large file via readRaw and renders SeqViz', async () => {
