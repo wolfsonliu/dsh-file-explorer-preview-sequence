@@ -12,6 +12,25 @@ export async function parseSequence(content: string, fileName: string): Promise<
   return seqs[0]
 }
 
+/**
+ * Parse raw bytes (ArrayBuffer) into a unified Seq. For text-based formats
+ * (FASTA, GenBank, JBEI, SBOL) the buffer is decoded via TextDecoder first.
+ * For SnapGene (.dna) the buffer is passed directly to seqparse.
+ */
+export async function parseSequenceFromBuffer(buffer: ArrayBuffer, fileName: string): Promise<Seq> {
+  const ext = fileName.includes('.') ? fileName.slice(fileName.lastIndexOf('.') + 1).toLowerCase() : ''
+  // SnapGene .dna is binary — seqparse handles ArrayBuffer natively for this format.
+  // For all other formats, decode as UTF-8 text first.
+  if (ext === 'dna') {
+    const seqs = parseFile(buffer, { fileName })
+    if (seqs.length === 0) throw new Error(`no sequence parsed from ${fileName}`)
+    return seqs[0]
+  }
+  const decoder = new TextDecoder()
+  const text = decoder.decode(buffer)
+  return parseSequence(text, fileName)
+}
+
 /** Normalize seqparse annotations into SeqViz's AnnotationProp shape, dropping
  *  the `type` field (SeqViz has no type). direction/color are kept only when
  *  defined. */

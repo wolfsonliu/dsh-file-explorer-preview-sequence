@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import type { Seq } from 'seqparse'
 import { fallsBackToText } from '../src/client/formats.ts'
-import { parseSequence, toSeqvizAnnotations } from '../src/client/parse.ts'
+import { parseSequence, parseSequenceFromBuffer, toSeqvizAnnotations } from '../src/client/parse.ts'
 
 describe('parseSequence', () => {
   test('parses a FASTA string into a unified Seq', async () => {
@@ -38,5 +38,48 @@ describe('fallsBackToText', () => {
     expect(fallsBackToText('seq')).toBe(true)
     expect(fallsBackToText('gb')).toBe(false)
     expect(fallsBackToText('')).toBe(false)
+  })
+})
+
+describe('parseSequenceFromBuffer', () => {
+  test('decodes a UTF-8 ArrayBuffer and parses FASTA', async () => {
+    const text = '>test\nATCGATCG'
+    const encoder = new TextEncoder()
+    const buffer = encoder.encode(text).buffer
+    const seq = await parseSequenceFromBuffer(buffer, 'test.fa')
+
+    expect(seq.name).toBe('test')
+    expect(seq.type).toBe('dna')
+    expect(seq.seq).toBe('ATCGATCG')
+    expect(seq.annotations).toEqual([])
+  })
+
+  test('decodes a UTF-8 ArrayBuffer and parses GenBank', async () => {
+    const text = `LOCUS       pBbE0c-RFP            3170 bp    DNA     circular     17-MAR-2025
+DEFINITION  pBbE0c-RFP.
+ACCESSION   pBbE0c-RFP
+FEATURES             Location/Qualifiers
+     misc_feature    1..10
+                     /label="test"
+ORIGIN
+        1 atcgatcgat cgatcgatcg atcgatcgat cgatcgatcg atcgatcgat cgatcgatcg
+       61 atcgatcgat cg
+//
+`
+    const encoder = new TextEncoder()
+    const buffer = encoder.encode(text).buffer
+    const seq = await parseSequenceFromBuffer(buffer, 'test.gb')
+
+    expect(seq.name).toBe('pBbE0c-RFP')
+    expect(seq.type).toBe('dna')
+    expect(seq.seq.length).toBeGreaterThan(0)
+    expect(seq.annotations.length).toBeGreaterThanOrEqual(1)
+  })
+
+  test('rejects an ArrayBuffer that is not a recognized sequence format', async () => {
+    const text = 'this is just plain text'
+    const encoder = new TextEncoder()
+    const buffer = encoder.encode(text).buffer
+    await expect(parseSequenceFromBuffer(buffer, 'notes.txt')).rejects.toThrow()
   })
 })
