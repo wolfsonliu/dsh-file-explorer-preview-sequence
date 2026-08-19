@@ -59,10 +59,10 @@ npm run build     # tsc + tsdown → host ESM lib/index.js + client CJS lib/clie
 
 - **One shared component, priority 10.** `makeSequencePreview(readRaw, t)` returns a single `ComponentType<PreviewProps>` that is registered — via `ctx.fileExplorer.registerPreview(ext, component, 10)` — for **every** extension in `SEQUENCE_FORMATS` (`src/protocol.ts`). Priority 10 overrides the core's built-in text previews (priority 0). The extension set is derived programmatically (`SEQUENCE_EXTS = Object.keys(SEQUENCE_FORMATS)`), so adding a format is a one-map-edit change: extend `SEQUENCE_FORMATS` and the README format table together.
 
-- **Preview kinds drive the read path.** The component reads the discriminated `preview.kind` (`text` | `binary` | `too-large` | `empty` | `image`):
+- **Preview kinds drive the read path.** The component reads the discriminated `preview.kind` (`text` | `binary` | `too-large` | `text-large` | `empty` | `image`):
   - `text` → `parseSequence(preview.content, preview.name)`.
-  - `binary` / `too-large` → `readRawFile(filePath)` then `parseSequenceFromBuffer(buffer, preview.name)`; **when `readRaw` is absent** (dsh-file-explorer < v0.1.0) the component degrades to an `unsupported` message rather than throwing.
-  - `empty` / `image` → returns `null` (the core's own kinds; not sequence material). `previewable = kind ∈ {text, binary, too-large}` gates both the effect and the render.
+  - `binary` / `too-large` / `text-large` → `readRawFile(filePath)` then `parseSequenceFromBuffer(buffer, preview.name)`; **when `readRaw` is absent** (dsh-file-explorer < v0.1.0) the component degrades to an `unsupported` message rather than throwing.
+  - `empty` / `image` → returns `null` (the core's own kinds; not sequence material). `previewable = kind ∈ {text, binary, too-large, text-large}` gates both the effect and the render.
   - `preview.name` (not `filePath`) is what seqparse receives as `fileName`, so extension disambiguation (`.seq` / `.xml`) and the SnapGene binary branch key off the file name.
 
 - **Ambiguous extensions fall back to plain text.** `.xml` (SBOL) and `.seq` (JBEI) collide with generic XML / Ape `.seq`. `fallsBackToText(ext)` (`src/client/formats.ts`) marks these two; on a parse failure within the `text` path the component renders the raw content as plain text instead of an error. `.dna` (SnapGene) is binary and is handled only through the `binary`/`too-large` + `readRawFile` route.
@@ -121,4 +121,4 @@ There is no host configuration and no `Config`/caps of its own — the caps (e.g
   | `apply.spec.tsx` | client `apply` bootstrap — registers a preview for every `SEQUENCE_FORMATS` extension at priority 10, registers zh/en locale, full teardown on disposer, graceful degrade when `readRawFile` is absent |
   | `formats.spec.ts` | pure helpers `extensionOf` / `formatLabelFor` / `fallsBackToText` |
   | `parse.spec.ts` | `parseSequence`, `parseSequenceFromBuffer` (UTF-8 FASTA/GenBank, SnapGene binary path), `toSeqvizAnnotations` shape |
-  | `sequence-preview.spec.tsx` | `SequencePreview` state machine — null for empty/image, unsupported without `readRaw`, plain-text fallback for non-SBOL `.xml`, error for unparseable unambiguous files, SeqViz render for FASTA and binary/too-large via `readRaw`, error when `readRaw` throws |
+  | `sequence-preview.spec.tsx` | `SequencePreview` state machine — null for empty/image, unsupported without `readRaw`, plain-text fallback for non-SBOL `.xml`, error for unparseable unambiguous files, SeqViz render for FASTA and binary/too-large/text-large via `readRaw`, error when `readRaw` throws |

@@ -6,7 +6,8 @@ import { VIEWER_CSS } from './styles.ts'
 
 /**
  * `readRawFile` is provided by dsh-file-explorer v0.1.0+. When absent (older
- * core), the plugin degrades: binary/too-large files show an unsupported message.
+ * core), the plugin degrades: binary/too-large/text-large files show an
+ * unsupported message.
  */
 type SequenceFileExplorer = FileExplorerService & {
   readRawFile?: (path: string, offset?: number, limit?: number) => Promise<ArrayBuffer>

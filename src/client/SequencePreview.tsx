@@ -38,7 +38,7 @@ export function makeSequencePreview(readRaw: ReadRaw | undefined, t: Translate):
 
     const ext = extensionOf(filePath)
     const formatLabel = formatLabelFor(ext)
-    const previewable = preview.kind === 'text' || preview.kind === 'binary' || preview.kind === 'too-large'
+    const previewable = preview.kind === 'text' || preview.kind === 'binary' || preview.kind === 'too-large' || preview.kind === 'text-large'
 
     useEffect(() => {
       if (!previewable) return
@@ -51,9 +51,9 @@ export function makeSequencePreview(readRaw: ReadRaw | undefined, t: Translate):
             const seq = await parseSequence(preview.content, preview.name)
             if (!cancelled) setState({ phase: 'ready', seq })
           } else {
-            // binary / too-large: call readRaw to get the raw bytes, then
-            // parse with seqparse. Degrades to unsupported if readRaw is
-            // absent (older dsh-file-explorer core).
+            // binary / too-large / text-large: call readRaw to get the raw
+            // bytes, then parse with seqparse. Degrades to unsupported if
+            // readRaw is absent (older dsh-file-explorer core).
             if (readRaw === undefined) {
               if (!cancelled) setState({ phase: 'unsupported' })
               return

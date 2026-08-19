@@ -65,6 +65,19 @@ describe('SequencePreview', () => {
     expect(container.textContent).toContain('T:unsupportedYet')
   })
 
+  test('shows the unsupported message for text-large when readRaw is absent', async () => {
+    const Preview = makeSequencePreview(undefined, t)
+    const container = await renderAndSettle(
+      <Preview
+        preview={{ kind: 'text-large', name: 'big.fa', extension: 'fa', size: 5_000_000 }}
+        filePath="big.fa"
+        activeView="preview"
+        t={t}
+      />,
+    )
+    expect(container.textContent).toContain('T:unsupportedYet')
+  })
+
   test('falls back to plain text for a non-SBOL .xml file', async () => {
     const Preview = makeSequencePreview(undefined, t)
     const container = await renderAndSettle(
@@ -142,6 +155,27 @@ describe('SequencePreview', () => {
     const container = await renderAndSettle(
       <Preview
         preview={{ kind: 'too-large', name: 'big.fa', size: 5_000_000 }}
+        filePath="big.fa"
+        activeView="preview"
+        t={t}
+      />,
+    )
+
+    const seqviz = container.querySelector('[data-testid="seqviz"]')
+    expect(seqviz).not.toBeNull()
+    expect(readRaw).toHaveBeenCalledWith('big.fa')
+  })
+
+  test('parses a text-large file via readRaw and renders SeqViz', async () => {
+    const text = '>test\nATCGATCG'
+    const encoder = new TextEncoder()
+    const buffer = encoder.encode(text).buffer
+    const readRaw = vi.fn(async () => buffer)
+
+    const Preview = makeSequencePreview(readRaw, t)
+    const container = await renderAndSettle(
+      <Preview
+        preview={{ kind: 'text-large', name: 'big.fa', extension: 'fa', size: 5_000_000 }}
         filePath="big.fa"
         activeView="preview"
         t={t}
