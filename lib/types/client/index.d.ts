@@ -5,7 +5,7 @@ import type { FileExplorerService, Translate } from '@dsh-external/dsh-file-expl
  * unsupported message.
  */
 type SequenceFileExplorer = FileExplorerService & {
-    readRawFile?: (path: string, offset?: number, limit?: number) => Promise<ArrayBuffer>;
+    readRawFile?: (path: string, offset?: number, limit?: number, signal?: AbortSignal) => Promise<ArrayBuffer>;
 };
 interface ClientContext {
     fileExplorer: SequenceFileExplorer;
