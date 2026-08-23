@@ -206,12 +206,14 @@ describe('SequencePreview', () => {
   })
 
   test('passes an AbortSignal to readRaw and aborts it on unmount', async () => {
-    const text = '>test\nATCGATCG'
-    const buffer = new TextEncoder().encode(text).buffer
     let capturedSignal: AbortSignal | null = null
-    const readRaw = vi.fn(async (_path: string, _offset?: number, _limit?: number, signal?: AbortSignal) => {
+    const readRaw = vi.fn((_path: string, _offset?: number, _limit?: number, signal?: AbortSignal) => {
       capturedSignal = signal ?? null
-      return buffer
+      return new Promise<ArrayBuffer>((_resolve, reject) => {
+        // Reject with AbortError when the signal fires, mirroring how a real
+        // fetch-backed readRawFile behaves on abort.
+        signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+      })
     })
 
     const Preview = makeSequencePreview(readRaw, t)
@@ -226,13 +228,47 @@ describe('SequencePreview', () => {
     })
     await act(async () => {})
 
-    expect(capturedSignal).not.toBeNull()
+    expect(capturedSignal).toBeInstanceOf(AbortSignal)
     expect(capturedSignal!.aborted).toBe(false)
+    // The read is still pending: the viewer stays in loading, never error.
+    expect(container.querySelector('.dsh-sq-overlay.is-error')).toBeNull()
 
     await act(async () => {
       root.unmount()
     })
 
     expect(capturedSignal!.aborted).toBe(true)
+  })
+
+  test('swallows the AbortError from an aborted read on file switch', async () => {
+    const readRaw = vi.fn((_path: string, _offset?: number, _limit?: number, signal?: AbortSignal) =>
+      new Promise<ArrayBuffer>((_resolve, reject) => {
+        signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+      }),
+    )
+
+    const Preview = makeSequencePreview(readRaw, t)
+
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    const render = (filePath: string): Promise<void> => act(async () => {
+      root.render(
+        <Preview preview={{ kind: 'binary', name: 'x.dna', size: 10 }} filePath={filePath} activeView="preview" t={t} />,
+      )
+    })
+
+    await render('a.dna')
+    await act(async () => {})
+    expect(readRaw).toHaveBeenCalledTimes(1)
+    expect(container.querySelector('.dsh-sq-overlay.is-error')).toBeNull()
+
+    // Switching files aborts the first read; its AbortError must be swallowed
+    // (no error flash) while the component stays mounted for the new file.
+    await render('b.dna')
+    await act(async () => {})
+
+    expect(readRaw).toHaveBeenCalledTimes(2)
+    expect(container.querySelector('.dsh-sq-overlay.is-error')).toBeNull()
   })
 })
