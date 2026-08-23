@@ -5,7 +5,7 @@ import type { Seq } from 'seqparse'
 import { extensionOf, fallsBackToText, formatLabelFor } from './formats.ts'
 import { parseSequence, parseSequenceFromBuffer, toSeqvizAnnotations } from './parse.ts'
 
-type ReadRaw = (path: string, offset?: number, limit?: number) => Promise<ArrayBuffer>
+type ReadRaw = (path: string, offset?: number, limit?: number, signal?: AbortSignal) => Promise<ArrayBuffer>
 
 type Viewer = NonNullable<SeqVizProps['viewer']>
 
@@ -45,6 +45,11 @@ export function makeSequencePreview(readRaw: ReadRaw | undefined, t: Translate):
       let cancelled = false
       setState({ phase: 'loading' })
 
+      // Abort the in-flight raw byte read (dsh-file-explorer v0.7.0+ accepts an
+      // AbortSignal) when the preview unmounts or the file changes, instead of
+      // letting it run to completion.
+      const controller = new AbortController()
+
       void (async () => {
         try {
           if (preview.kind === 'text') {
@@ -58,7 +63,7 @@ export function makeSequencePreview(readRaw: ReadRaw | undefined, t: Translate):
               if (!cancelled) setState({ phase: 'unsupported' })
               return
             }
-            const buffer = await readRaw(filePath)
+            const buffer = await readRaw(filePath, undefined, undefined, controller.signal)
             const seq = await parseSequenceFromBuffer(buffer, preview.name)
             if (!cancelled) setState({ phase: 'ready', seq })
           }
@@ -72,7 +77,10 @@ export function makeSequencePreview(readRaw: ReadRaw | undefined, t: Translate):
         }
       })()
 
-      return () => { cancelled = true }
+      return () => {
+        cancelled = true // set first: the aborted read's AbortError is ignored by the `if (cancelled) return` guard
+        controller.abort()
+      }
     }, [preview, filePath, ext, previewable, readRaw, t])
 
     if (!previewable) return null

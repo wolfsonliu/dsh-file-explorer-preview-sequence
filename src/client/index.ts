@@ -10,7 +10,7 @@ import { VIEWER_CSS } from './styles.ts'
  * unsupported message.
  */
 type SequenceFileExplorer = FileExplorerService & {
-  readRawFile?: (path: string, offset?: number, limit?: number) => Promise<ArrayBuffer>
+  readRawFile?: (path: string, offset?: number, limit?: number, signal?: AbortSignal) => Promise<ArrayBuffer>
 }
 
 interface ClientContext {

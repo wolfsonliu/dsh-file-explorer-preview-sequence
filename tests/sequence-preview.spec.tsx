@@ -142,7 +142,7 @@ describe('SequencePreview', () => {
 
     const seqviz = container.querySelector('[data-testid="seqviz"]')
     expect(seqviz).not.toBeNull()
-    expect(readRaw).toHaveBeenCalledWith('x.gb')
+    expect(readRaw).toHaveBeenCalledWith('x.gb', undefined, undefined, expect.any(AbortSignal))
   })
 
   test('parses a too-large file via readRaw and renders SeqViz', async () => {
@@ -163,7 +163,7 @@ describe('SequencePreview', () => {
 
     const seqviz = container.querySelector('[data-testid="seqviz"]')
     expect(seqviz).not.toBeNull()
-    expect(readRaw).toHaveBeenCalledWith('big.fa')
+    expect(readRaw).toHaveBeenCalledWith('big.fa', undefined, undefined, expect.any(AbortSignal))
   })
 
   test('parses a text-large file via readRaw and renders SeqViz', async () => {
@@ -184,7 +184,7 @@ describe('SequencePreview', () => {
 
     const seqviz = container.querySelector('[data-testid="seqviz"]')
     expect(seqviz).not.toBeNull()
-    expect(readRaw).toHaveBeenCalledWith('big.fa')
+    expect(readRaw).toHaveBeenCalledWith('big.fa', undefined, undefined, expect.any(AbortSignal))
   })
 
   test('shows error when readRaw fails for binary/too-large', async () => {
@@ -202,6 +202,37 @@ describe('SequencePreview', () => {
 
     expect(container.textContent).toContain('T:loadError')
     expect(container.textContent).toContain('network error')
-    expect(readRaw).toHaveBeenCalledWith('big.fa')
+    expect(readRaw).toHaveBeenCalledWith('big.fa', undefined, undefined, expect.any(AbortSignal))
+  })
+
+  test('passes an AbortSignal to readRaw and aborts it on unmount', async () => {
+    const text = '>test\nATCGATCG'
+    const buffer = new TextEncoder().encode(text).buffer
+    let capturedSignal: AbortSignal | null = null
+    const readRaw = vi.fn(async (_path: string, _offset?: number, _limit?: number, signal?: AbortSignal) => {
+      capturedSignal = signal ?? null
+      return buffer
+    })
+
+    const Preview = makeSequencePreview(readRaw, t)
+
+    const container = document.createElement('div')
+    document.body.appendChild(container)
+    const root = createRoot(container)
+    await act(async () => {
+      root.render(
+        <Preview preview={{ kind: 'binary', name: 'x.dna', size: 10 }} filePath="x.dna" activeView="preview" t={t} />,
+      )
+    })
+    await act(async () => {})
+
+    expect(capturedSignal).not.toBeNull()
+    expect(capturedSignal!.aborted).toBe(false)
+
+    await act(async () => {
+      root.unmount()
+    })
+
+    expect(capturedSignal!.aborted).toBe(true)
   })
 })
