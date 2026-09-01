@@ -6,6 +6,7 @@ import { SEQUENCE_EXTS } from '../src/protocol.ts'
 interface MockCtx {
   fileExplorer: {
     registerPreview: ReturnType<typeof vi.fn>
+    registerViewer?: ReturnType<typeof vi.fn>
     registerFileAction: ReturnType<typeof vi.fn>
     writeFile: ReturnType<typeof vi.fn>
     readRawFile?: ReturnType<typeof vi.fn>
@@ -17,14 +18,22 @@ interface MockCtx {
   effect: ReturnType<typeof vi.fn>
 }
 
-function makeCtx(): { ctx: MockCtx; cleanup: () => void } {
+function makeFileExplorer(
+  overrides: Partial<MockCtx['fileExplorer']> = {},
+): MockCtx['fileExplorer'] {
+  return {
+    registerPreview: vi.fn(() => () => {}),
+    registerViewer: vi.fn(() => () => {}),
+    registerFileAction: vi.fn(),
+    writeFile: vi.fn(async () => {}),
+    ...overrides,
+  }
+}
+
+function makeCtx(fileExplorer = makeFileExplorer()): { ctx: MockCtx; cleanup: () => void } {
   let cleanup: () => void = () => {}
   const ctx: MockCtx = {
-    fileExplorer: {
-      registerPreview: vi.fn(() => () => {}),
-      registerFileAction: vi.fn(),
-      writeFile: vi.fn(async () => {}),
-    },
+    fileExplorer,
     locale: {
       register: vi.fn(() => () => {}),
       bind: vi.fn(() => ((key: string) => key)),
@@ -39,8 +48,23 @@ beforeEach(() => {
 })
 
 describe('apply', () => {
-  test('registers the sequence preview for every extension at priority 10', () => {
+  test('registers one named viewer across every extension at priority 10 via registerViewer', () => {
     const { ctx } = makeCtx()
+    apply(ctx as never)
+
+    expect(ctx.fileExplorer.registerViewer).toHaveBeenCalledTimes(1)
+    expect(ctx.fileExplorer.registerViewer).toHaveBeenCalledWith({
+      id: 'seqviz',
+      label: 'SeqViz',
+      exts: SEQUENCE_EXTS,
+      component: expect.any(Function),
+      priority: 10,
+    })
+    expect(ctx.fileExplorer.registerPreview).not.toHaveBeenCalled()
+  })
+
+  test('falls back to registerPreview per extension when registerViewer is absent', () => {
+    const { ctx } = makeCtx(makeFileExplorer({ registerViewer: undefined }))
     apply(ctx as never)
 
     expect(ctx.fileExplorer.registerPreview).toHaveBeenCalledTimes(SEQUENCE_EXTS.length)
@@ -57,21 +81,24 @@ describe('apply', () => {
     expect(ctx.locale.register).toHaveBeenCalledWith('file-explorer-preview-sequence', 'en', expect.any(Object))
   })
 
-  test('cleanup disposes every preview registration, the locale, and the style tag', () => {
+  test('cleanup disposes the viewer registration, the locale, and the style tag', () => {
+    const viewerDispose = vi.fn()
+    const { ctx, cleanup } = makeCtx(makeFileExplorer({ registerViewer: vi.fn(() => viewerDispose) }))
+    apply(ctx as never)
+
+    expect(document.querySelector('style[data-sequence-preview-style]')).not.toBeNull()
+
+    cleanup()
+    expect(viewerDispose).toHaveBeenCalledTimes(1)
+    expect(document.querySelector('style[data-sequence-preview-style]')).toBeNull()
+  })
+
+  test('cleanup disposes every preview registration in the registerPreview fallback', () => {
     const disposers: (() => void)[] = []
-    let cleanup: () => void = () => {}
-    const ctx: MockCtx = {
-      fileExplorer: {
-        registerPreview: vi.fn(() => { const d = vi.fn(); disposers.push(d); return d }),
-        registerFileAction: vi.fn(),
-        writeFile: vi.fn(async () => {}),
-      },
-      locale: {
-        register: vi.fn(() => vi.fn()),
-        bind: vi.fn(() => ((key: string) => key)),
-      },
-      effect: vi.fn((cb: () => (() => void)) => { cleanup = cb() }),
-    }
+    const { ctx, cleanup } = makeCtx(makeFileExplorer({
+      registerViewer: undefined,
+      registerPreview: vi.fn(() => { const d = vi.fn(); disposers.push(d); return d }),
+    }))
     apply(ctx as never)
 
     expect(disposers).toHaveLength(SEQUENCE_EXTS.length)
@@ -83,8 +110,8 @@ describe('apply', () => {
   })
 
   test('degrades gracefully when readRawFile is absent from the service', () => {
-    const { ctx } = makeCtx() // no readRawFile
+    const { ctx } = makeCtx(makeFileExplorer({ readRawFile: undefined }))
     expect(() => apply(ctx as never)).not.toThrow()
-    expect(ctx.fileExplorer.registerPreview).toHaveBeenCalledTimes(SEQUENCE_EXTS.length)
+    expect(ctx.fileExplorer.registerViewer).toHaveBeenCalledTimes(1)
   })
 })

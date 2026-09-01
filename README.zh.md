@@ -18,6 +18,7 @@
 - **拓扑**：环状 / 线性 / 并排 / 反向并排。
 - **feature 注释着色**、**搜索高亮**、**酶切位点**、互补链与刻度开关、线性缩放。
 - **状态栏**：格式徽标 + 名称 + 类型 + 长度。
+- **可选查看器**：注册为具名 **SeqViz** 查看器（dsh-file-explorer v0.9.0+），出现在文件行的"打开方式…"菜单与预览面板切换器中 —— 可在歧义扩展名 `.xml`/`.seq` 上显式选择，或回退为纯文本。
 - **文案双语**（中文 / English）。
 - **深浅主题自适应**：跟随 DSH 的 `data-ds-dark-theme`。
 
@@ -53,7 +54,7 @@ dsh web
 
 ## 依赖
 
-本插件**依赖** [`@dsh-external/dsh-file-explorer`](https://github.com/wolfsonliu/dsh-file-explorer)（v0.1.0+）—— 它注入 `fileExplorer` cordis 服务（`registerPreview` / `writeFile` / `readRawFile`）。请先安装并启用 `dsh-file-explorer`：
+本插件**依赖** [`@dsh-external/dsh-file-explorer`](https://github.com/wolfsonliu/dsh-file-explorer)（v0.1.0+）—— 它注入 `fileExplorer` cordis 服务（`registerViewer` / `registerPreview` / `writeFile` / `readRawFile`）。请先安装并启用 `dsh-file-explorer`：
 
 ```sh
 # 从 git 安装核心
@@ -69,6 +70,8 @@ dsh plugin --profile web add .
 > 本地开发时，本仓库的 `devDependencies` 用于让 tsc 解析 `@dsh-external/dsh-file-explorer` 的 `./client` 类型定义；`npm install` 前请将其指向你自己的 checkout（或 registry 上发布的包）。
 
 ≤ 2 MiB 的文件插件直接解析 `text` 预览内容。SnapGene `.dna`（二进制）与 > 2 MiB 的大文件通过 `readRawFile`（dsh-file-explorer v0.1.0+ 已提供）处理。当 `readRawFile` 不可用时（旧版核心），插件自动降级：≤ 2 MiB 的文本格式仍可预览，`.dna` 与大文件显示暂不支持提示。
+
+在 dsh-file-explorer v0.9.0+ 上，插件还会通过 `registerViewer` 注册为单个具名 **SeqViz** 条目，出现在"打开方式…"中；旧版核心则回退为逐扩展名的 `registerPreview` 注册。
 
 ## 限制
 

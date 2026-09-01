@@ -10,10 +10,11 @@
 ```
 src/
   index.ts            host half: no-op cordis plugin (inject [] / empty apply) so the host can import the roster entry
-  protocol.ts         the single source of truth for formats: SEQUENCE_FORMATS map (ext → label), SEQUENCE_EXTS, PLUGIN_ID
+  protocol.ts         the single source of truth for formats: SEQUENCE_FORMATS map (ext → label), SEQUENCE_EXTS, PLUGIN_ID, SEQUENCE_VIEWER_ID/LABEL
   client/
     index.ts              browser half: injects ['fileExplorer', 'locale'], injects VIEWER_CSS, registers one shared
-                          preview component for every SEQUENCE_FORMATS extension at priority 10, tears down on disposer
+                          viewer (registerViewer, with a registerPreview fallback) for every SEQUENCE_FORMATS
+                          extension at priority 10, tears down on disposer
     formats.ts            pure helpers: extensionOf / formatLabelFor / fallsBackToText
     parse.ts              seqparse glue: parseSequence (text) / parseSequenceFromBuffer (binary) / toSeqvizAnnotations
     SequencePreview.tsx   makeSequencePreview(readRaw, t) factory → the <SeqViz> viewer component + toolbar/status state machine
@@ -57,7 +58,7 @@ npm run build     # tsc + tsdown → host ESM lib/index.js + client CJS lib/clie
 
 - **Client does everything; host is a stub.** The host half (`src/index.ts`) is `inject: []` with an empty `apply()`. It has no route, no filesystem access, and no configuration. The browser half (`src/client/index.ts`, `inject: ['fileExplorer', 'locale']`) registers a preview component and renders through the core's own preview panel — it never calls `fetch` itself; the core hands it a `preview` object and calls the registered component.
 
-- **One shared component, priority 10.** `makeSequencePreview(readRaw, t)` returns a single `ComponentType<PreviewProps>` that is registered — via `ctx.fileExplorer.registerPreview(ext, component, 10)` — for **every** extension in `SEQUENCE_FORMATS` (`src/protocol.ts`). Priority 10 overrides the core's built-in text previews (priority 0). The extension set is derived programmatically (`SEQUENCE_EXTS = Object.keys(SEQUENCE_FORMATS)`), so adding a format is a one-map-edit change: extend `SEQUENCE_FORMATS` and the README format table together.
+- **One shared component, priority 10.** `makeSequencePreview(readRaw, t)` returns a single `ComponentType<PreviewProps>` that is registered — via `ctx.fileExplorer.registerViewer({ id: SEQUENCE_VIEWER_ID, label: SEQUENCE_VIEWER_LABEL, exts, component, priority: 10 })` (falling back to a `registerPreview(ext, component, 10)` loop on cores < v0.9.0) — for **every** extension in `SEQUENCE_FORMATS` (`src/protocol.ts`). Priority 10 overrides the core's built-in text previews (priority 0). The extension set is derived programmatically (`SEQUENCE_EXTS = Object.keys(SEQUENCE_FORMATS)`), so adding a format is a one-map-edit change: extend `SEQUENCE_FORMATS` and the README format table together.
 
 - **Preview kinds drive the read path.** The component reads the discriminated `preview.kind` (`text` | `binary` | `too-large` | `text-large` | `empty` | `image`):
   - `text` → `parseSequence(preview.content, preview.name)`.
@@ -69,7 +70,7 @@ npm run build     # tsc + tsdown → host ESM lib/index.js + client CJS lib/clie
 
 - **Parsing is seqparse, rendering is SeqViz, and the seam is `parse.ts`.** `parseSequence` / `parseSequenceFromBuffer` both terminate in seqparse's `parseFile` and return a unified `Seq`; `toSeqvizAnnotations` strips seqparse's `type` field and keeps only `name`/`start`/`end` (+ `direction`/`color` when defined) to satisfy SeqViz's `AnnotationProp`. Use seqparse's named `parseFile` export (not its default) so a non-empty `fileName` drives extension-based disambiguation and the accession-ID fetch branch is never hit.
 
-- **Single DOM surface, torn down by the disposer.** `apply` injects one `<style data-sequence-preview-style>` tag, then registers everything inside `ctx.effect(...)`. The disposer removes each preview registration, disposes the locale registration, and removes the style tag. Keep the disposer complete — this is what makes unload/HMR safe. `tests/apply.spec.tsx` asserts the teardown.
+- **Single DOM surface, torn down by the disposer.** `apply` injects one `<style data-sequence-preview-style>` tag, then registers everything inside `ctx.effect(...)`. The disposer disposes the viewer registration (or the composite fallback), disposes the locale registration, and removes the style tag. Keep the disposer complete — this is what makes unload/HMR safe. `tests/apply.spec.tsx` asserts the teardown.
 
 - **Styles are injected, not imported.** An external plugin cannot import a CSS module, so styles live in `VIEWER_CSS` (`src/client/styles.ts`). All classes are scoped under the `dsh-sq` (and `.dsh-sq-*`) prefix; theme values use `var(--dsw-alias-*, fallback)` so dark/light follows DSH automatically. Add no unscoped/global selectors.
 
@@ -77,7 +78,8 @@ npm run build     # tsc + tsdown → host ESM lib/index.js + client CJS lib/clie
 
 This plugin consumes the `fileExplorer` cordis service that `@dsh-external/dsh-file-explorer` provides. `src/client/index.ts` types it as `FileExplorerService & { readRawFile? }` imported from `@dsh-external/dsh-file-explorer/client`. The stable members this plugin relies on:
 
-- `registerPreview(ext, component, priority?): () => void` — the primary integration point.
+- `registerViewer(viewer: { id, label, exts, component, priority? }): () => void` — the primary integration point (v0.9.0+): one named "Open with…" entry (`SEQUENCE_VIEWER_ID` / `SEQUENCE_VIEWER_LABEL`) across every extension. Probed at runtime; falls back to `registerPreview` on older cores.
+- `registerPreview(ext, component, priority?): () => void` — the fallback for cores < v0.9.0.
 - `readRawFile(path, offset?, limit?): Promise<ArrayBuffer>` — **optional**; required only for `.dna` and > 2 MiB files (available in v0.1.0+; this plugin degrades when absent).
 - `PreviewProps` — `{ preview, filePath, t, onViewSource?, activeView }` (see `src/client/SequencePreview.tsx` for usage).
 - `Translate` — `(key, params?) => string`, bound via `locale.bind`.
@@ -89,6 +91,7 @@ Treat those signatures as owned upstream and semver-stable. `package.json`'s `de
 There is no host configuration and no `Config`/caps of its own — the caps (e.g. the 2 MiB text threshold that decides `text` vs `too-large`) belong to `dsh-file-explorer`. The only behavior knobs are compile-time constants in this repo, and they should stay in sync with the README:
 
 - `SEQUENCE_FORMATS` / `SEQUENCE_EXTS` (`src/protocol.ts`) — the supported extension → format-label map.
+- `SEQUENCE_VIEWER_ID` / `SEQUENCE_VIEWER_LABEL` (`src/protocol.ts`) — the "Open with…" viewer identity (`seqviz` / `SeqViz`).
 - Preview registration priority `10` (`src/client/index.ts`) — must stay above the core's built-in `0`.
 - `TOPOLOGIES` and `ENZYME_CHOICES` (`src/client/SequencePreview.tsx`) — viewer toolbar options.
 
@@ -96,7 +99,7 @@ There is no host configuration and no `Config`/caps of its own — the caps (e.g
 
 - Strict TypeScript (`strict: true`, `noEmitOnError`), ESM everywhere (`"type": "module"`), `.ts`/`.tsx` extensions in relative imports (`allowImportingTsExtensions` + `rewriteRelativeImportExtensions`).
 - Switch on the discriminated `LoadState.phase` tag (`loading | ready | plain | error | unsupported`) rather than scattering booleans; the state union is the single render source of truth.
-- Trust TypeScript at typed same-process boundaries: do not re-validate the `PreviewProps`/`FileExplorerService` types the core guarantees. The only runtime boundary this plugin cares about is `readRawFile` presence (`typeof … === 'function'`) and `preview.kind`.
+- Trust TypeScript at typed same-process boundaries: do not re-validate the `PreviewProps`/`FileExplorerService` types the core guarantees. The only runtime boundaries this plugin cares about are `registerViewer` / `readRawFile` presence (`typeof … === 'function'`) and `preview.kind`.
 - React uses `jsx: react-jsx` (no `React` import needed just for JSX); import hooks/types by name. Async work in the view effect is guarded by a `cancelled` flag so it never sets state after unmount.
 - **`.dsh-sq-*` classes and `data-sequence-preview-style` are the test-hook contract.** `tests/apply.spec.tsx` locates the injected style via `style[data-sequence-preview-style]`; `tests/sequence-preview.spec.tsx` locates the viewer via the mocked SeqViz's `data-testid="seqviz"` and the plain-text fallback via `pre.dsh-sq-plain`. Keep those selectors/attribute values stable and class-scope all new styles under `dsh-sq`.
 - An empty/fallback `catch` names what it swallows and why (e.g. the SnapGene branch's `catch` falls through to the UTF-8 text decode path).
@@ -118,7 +121,7 @@ There is no host configuration and no `Config`/caps of its own — the caps (e.g
 
   | Spec | Covers |
   | --- | --- |
-  | `apply.spec.tsx` | client `apply` bootstrap — registers a preview for every `SEQUENCE_FORMATS` extension at priority 10, registers zh/en locale, full teardown on disposer, graceful degrade when `readRawFile` is absent |
+  | `apply.spec.tsx` | client `apply` bootstrap — registers one named viewer (`registerViewer`) for every `SEQUENCE_FORMATS` extension at priority 10 with a `registerPreview` fallback, registers zh/en locale, full teardown on disposer, graceful degrade when `readRawFile` is absent |
   | `formats.spec.ts` | pure helpers `extensionOf` / `formatLabelFor` / `fallsBackToText` |
   | `parse.spec.ts` | `parseSequence`, `parseSequenceFromBuffer` (UTF-8 FASTA/GenBank, SnapGene binary path), `toSeqvizAnnotations` shape |
   | `sequence-preview.spec.tsx` | `SequencePreview` state machine — null for empty/image, unsupported without `readRaw`, plain-text fallback for non-SBOL `.xml`, error for unparseable unambiguous files, SeqViz render for FASTA and binary/too-large/text-large via `readRaw`, error when `readRaw` throws |

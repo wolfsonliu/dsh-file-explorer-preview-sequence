@@ -18,6 +18,7 @@ Select a `.gb` / `.fasta` (or any supported format below) in the file explorer a
 - **Topologies**: circular / linear / both / both-flip.
 - **Feature annotations** with colors, **search** with highlight, **enzyme cut sites**, complement & index toggles, and linear zoom.
 - **Status bar** with the format badge, name, sequence type, and length.
+- **Selectable viewer**: registered as a named **SeqViz** viewer (dsh-file-explorer v0.9.0+), so it appears in the file row's "Open with…" menu and the preview-panel switcher — pick it explicitly for ambiguous `.xml`/`.seq` files, or fall back to plain text.
 - **Localized** toolbar/status copy (中文 / English).
 - **Dark/light aware**: follows DSH's `data-ds-dark-theme`.
 
@@ -53,7 +54,7 @@ dsh web
 
 ## Dependencies
 
-This plugin **requires** [`@dsh-external/dsh-file-explorer`](https://github.com/wolfsonliu/dsh-file-explorer) (v0.1.0+) — it injects the `fileExplorer` cordis service (`registerPreview` / `writeFile` / `readRawFile`). Install and enable `dsh-file-explorer` before this plugin:
+This plugin **requires** [`@dsh-external/dsh-file-explorer`](https://github.com/wolfsonliu/dsh-file-explorer) (v0.1.0+) — it injects the `fileExplorer` cordis service (`registerViewer` / `registerPreview` / `writeFile` / `readRawFile`). Install and enable `dsh-file-explorer` before this plugin:
 
 ```sh
 # install the core from git
@@ -69,6 +70,8 @@ dsh plugin --profile web add .
 > For local development, this repo's `devDependencies` resolves `@dsh-external/dsh-file-explorer`'s `./client` type definitions. Point it at your checkout or your registry's published package before `npm install`.
 
 For files ≤ 2 MiB the plugin parses the `text` preview content directly. SnapGene `.dna` (binary) and files larger than 2 MiB are handled via `readRawFile` (available in dsh-file-explorer v0.1.0+). When `readRawFile` is absent (older core versions), the plugin degrades gracefully: text formats ≤ 2 MiB still preview, `.dna` and larger files show an unsupported status.
+
+On dsh-file-explorer v0.9.0+ the plugin also registers via `registerViewer`, giving it a single named **SeqViz** entry in "Open with…"; on older cores it falls back to per-extension `registerPreview` registrations.
 
 ## Limitations
 
